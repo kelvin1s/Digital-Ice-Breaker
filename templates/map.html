@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block content %}
+{% with messages = get_flashed_messages() %}  <!--storing flash messages temporarily in variable uses with block-->
+{% if messages %}
+{% for msg in messages %}
+    <div style="color: red;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<h1>Please confirm your location on the map is correct!</h1>
+<h2>Click on the map or drag the marker to confirm the event's location!</h2>
+<div id="map" style="height:500px; width:100%"></div>
+<form id="map-form" method="post" class="buttons">
+    <input type="hidden" name="lat" id="lat" value="{{lat}}">   <!--form for the map that updates its values when the the marker is moved-->
+    <input type="hidden" name="lng" id="lng" value="{{lng}}">
+    <input type="hidden" name="acc" id="acc" value="{{acc}}">
+    <input type="hidden" name="radius" id="radiusInput">
+    
+    <h2><label>Adjust the slider to set the boundaries of your event! (metres)</label></h2>
+    <input type="range" id="radiusSlider" min="1" max="100" step="1" style="width:300px;">  <!--slider which adjusts the radius of the host's event in metres-->
+    <span id="radiusValue">500</span>
+
+    <script>
+        let roomLat = Number("{{ lat }}");
+        let roomLng = Number("{{ lng }}");
+        let roomRadius = Number("{{ rad }}");
+
+        var map = L.map('map').setView([roomLat, roomLng], 13);     // using leaflet to create a map object
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {    // calling the openstreetmap library 
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        let marker, circle, zoomed;
+
+        marker = L.marker([roomLat, roomLng], {draggable: true}).addTo(map);
+        circle = L.circle([roomLat, roomLng], {radius: roomRadius}).addTo(map);
+        let popup = L.popup({
+            offset: [0, -40],
+            maxWidth: 150
+        });
+
+        const radiusSlider = document.getElementById("radiusSlider");   
+        const radiusValue = document.getElementById("radiusValue");
+        const radiusInput = document.getElementById("radiusInput");
+
+        radiusSlider.value = roomRadius;    // setting the slider to the event radius default value (1.0)
+        radiusInput.value = roomRadius;
+        radiusValue.textContent = roomRadius;
+
+        radiusSlider.addEventListener("input", function () {    // javascript function that changes the the radius of the event when the slider is moved
+
+            const radius = Number(radiusSlider.value);
+
+            circle.setRadius(radius);
+
+            radiusValue.textContent = radius;
+
+            // storing new radius value of the event
+            radiusInput.value = radius;
+        });
+
+
+        function onMapClick(e) {    // function that changes coordinates of the event based on where the user clicks on the map
+            let position = e.latlng;
+            popup
+                .setLatLng(position)
+                .setContent(`
+                    <b>Confirm location</b><br>
+                    Coordinates: <b><i>${e.latlng.lat}, ${e.latlng.lng}</i></b>
+                `)
+                .openOn(map);
+
+            let lat = position.lat;
+            let lng = position.lng;
+
+            marker.setLatLng([lat, lng]);
+            circle.setLatLng([lat, lng]).redraw();
+
+            document.getElementById("lat").value = lat;
+            document.getElementById("lng").value = lng;
+
+            console.log("CLICKED:", e.latlng.lat, e.latlng.lng);
+            console.log("INPUTS:", document.getElementById("lat").value, document.getElementById("lng").value);
+        }
+
+        function onMarkerDrag(e) {      // function that changes coordinates of the event based on where the user drags the marker
+            let position = e.target.getLatLng();
+            popup
+                .setLatLng(position)
+                .setContent(`
+                    <b>Confirm location</b><br>
+                    Coordinates: <b><i>${position.lat}, ${position.lng}</i></b>
+                `)
+                .openOn(map);
+
+            let lat = position.lat;
+            let lng = position.lng;
+
+            circle.setLatLng([lat, lng]).redraw();
+
+            document.getElementById("lat").value = lat;
+            document.getElementById("lng").value = lng;
+
+            console.log("DRAGGED:", lat, lng);
+            console.log("INPUTS:", document.getElementById("lat").value, document.getElementById("lng").value);
+        }
+
+        map.on('click', onMapClick);
+        marker.on("drag", onMarkerDrag);
+
+        if(!zoomed) {
+            zoomed = map.fitBounds(circle.getBounds());
+        }
+    </script>
+    <button type="submit">Continue to QR Code</button>
+    {% if error %}
+    <ul>
+        <li style="color: red;">{{error}}</li>
+    </ul>
+    {% endif %}
+</form>
+{% endblock %}

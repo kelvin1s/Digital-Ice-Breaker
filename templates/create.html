@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block content %}
+{% with messages = get_flashed_messages() %}  
+{% if messages %}
+{% for msg in messages %}
+    <div style="color: red;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %} 
+
+<form id="create-room" method="post" class="buttons" onsubmit="return checkLocation()"> <!--form that when submitted, runs the location check function to process the host's GPS data-->
+    <h1>Create a room</h1>
+    <div>
+        <label>What's the name of your event?:</label>
+        <input type="text" placeholder="Event Name" name="room_name" value="{{room_name}}"/>
+    </div>
+    <div>
+        <label>How many people are attending your event?</label>
+        <input type="number" placeholder="10" name="capacity" value="{{capacity}}" min="1" step="1">
+
+    </div>
+    <div>
+        <label>How long will your event last? (minutes)</label>
+        <input type="number" placeholder="60" name="duration" value="{{duration}}" min="1" max="360" step="1">
+    </div>
+
+    <!-- GPS location data-->
+    <input type="hidden" name="lat" id="lat" value="{{lat}}">   <!--hidden form that processes user's GPS data-->
+    <input type="hidden" name="lng" id="lng" value="{{lng}}"> 
+    <input type="hidden" name="accuracy" id="accuracy" value="{{accuracy}}">
+    <button type="submit">Create Room</button> 
+
+    {% if error %}
+    <ul>
+        <li style="color: red;">{{error}}</li>
+    </ul>
+    {% endif %}
+    
+</form>
+<script>    // javascript is used for writing frontend functions and accessing the geolocation api
+        function checkLocation() {
+            const lat = document.getElementById("lat").value;   // function that checks to see if location has been accessed before being able to join any rooms
+            const lng = document.getElementById("lng").value;
+            const init_acc = document.getElementById("accuracy").value;
+
+            if (lat && lng && init_acc) {
+                 return true;
+            }
+            console.log("Requesting location");
+
+            navigator.geolocation.getCurrentPosition(   //geolocation api methods are used to access the user's GPS location
+                (pos) => {
+                    console.log("Processing location");
+
+                    let bestPosition = pos
+                    let finished = false;
+
+                    const watchID = navigator.geolocation.watchPosition(    //user's location is continuously watched to find the most accurate set of coordinates
+                        (pos) => {
+                            const acc = pos.coords.accuracy;
+                            console.log("Accuracy:", acc);
+            
+                            if (!bestPosition || acc < bestPosition.coords.accuracy) {
+                                bestPosition = pos; // storing the most accurate location data
+                            }
+
+                            if (acc <= 100 && !finished) {
+                                finished = true;
+                        
+                                clearTimeout(timeoutID);
+                                navigator.geolocation.clearWatch(watchID);  // if location data comes back with an accuracy below or equal to 100, immediately stop watching the user's location and store that data
+                        
+                                console.log("Location success");
+
+                                document.getElementById("lat").value = pos.coords.latitude;
+                                document.getElementById("lng").value = pos.coords.longitude;
+                                document.getElementById("accuracy").value = pos.coords.accuracy;
+                                console.log(pos);
+                                console.log("Coordinates received");
+                                document.getElementById("create-room").submit();
+                            }
+                        },
+                        (err) => {
+                            console.log("Location error");
+                            alert("Please allow location access to create a room.");
+                        },
+                        {
+                            enableHighAccuracy:true,
+                            maximumAge:0
+                        }
+                        );
+                    const timeoutID = setTimeout(() => {  // if accuracy never goes below a certain value after 5 seconds, stop watching
+                        if (finished) return;
+                        
+                            navigator.geolocation.clearWatch(watchID);
+                            if(bestPosition) {
+                                document.getElementById("lat").value = bestPosition.coords.latitude;
+                                document.getElementById("lng").value = bestPosition.coords.longitude;
+                                document.getElementById("accuracy").value = bestPosition.coords.accuracy;
+                                console.log(bestPosition);
+                                console.log("Coordinates received");
+                                document.getElementById("create-room").submit();
+                            }
+                            else {
+                                alert("Couldn't get location");
+                            }
+                    }, 5000);
+                },
+                (err) => {
+                    console.log("Location error");
+                    alert("Location access is required.");
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0
+                }
+            );
+
+        return false;
+
+    }
+</script>
+
+{% endblock %}

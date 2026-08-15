@@ -1,0 +1,91 @@
+html, body {
+    height:100%;
+    margin: 0;
+    background-color: #EAD48A;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif
+}
+
+.content {  /*editing the content block*/
+    display:flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction:column;
+    height:100%;
+
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.buttons{   /*editing the form data*/
+    display: flex;
+    flex-direction: column; /*items are aligned in a column*/
+    align-items: center;
+    justify-content: center;
+    gap: 10px /*creating space between the flex items (divs and buttons from html template)*/
+}
+
+.join {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.create-btn {
+    width: 100%
+}
+
+.message-box {
+    border-color:black;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 10px;
+    background-color: rgb(221, 235, 249);
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    width: 80vw;
+    align-items: stretch;
+}
+
+.messages {
+    overflow-y: scroll;
+    flex: 1;
+    width: 100%;
+}
+
+.inputs {
+    padding: 10px;
+    display: flex;
+}
+
+h2 {
+    text-align: center;
+}
+
+#message {
+    flex: 1;
+}
+
+.text {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.muted {
+    font-size: 10px;
+    color: darkgrey
+}
+
+.host-name {
+    color: gold;
+    font-weight: bold;
+}
+#map { 
+    height: 500px; 
+    width: 80vw;
+    max-width: 1000px;
+}

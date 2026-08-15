@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block content %}
+{% with messages = get_flashed_messages() %}  <!--storing flash messages temporarily in variable uses with block-->
+{% if messages %}
+{% for msg in messages %}
+    <div style="color: red;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="message-box">   <!--chat box-->
+    <h2>Welcome to the '{{name}}' Chat room! Room Code: {{code}}</h2>
+    <div class="messages" id="messages"></div>  <!--div that gets messages from the socket server to be displayed on the frontend-->
+    <div class="inputs">
+        <input type="text" rows="3" placeholder="Message" name="message" id="message"/> <!--where the user will input their messages-->
+        <button type="button" name="send" id="send-btn" onClick="sendMessage()">Send</button>   <!--on click used to send message to socket server via javascript function-->
+    </div>
+    <div id="chat-history" data-history='{{ messages | tojson }}'></div>    <!--saving chat history for users to see when they join-->
+    <input type="hidden" name="lat" id="lat" value="{{lat}}"> 
+    <input type="hidden" name="lng" id="lng" value="{{lng}}"> 
+    <input type="hidden" name="rad" id="rad" value="{{rad}}">
+</div>
+{% if error %}
+    <ul>
+        <li style="color: red;">{{error}}</li>
+    </ul>
+{% endif %}
+<!--javascript used so that messages can update without refreshing the page-->
+<script type="text/javascript"> 
+    var socketio = io();
+
+    const messagesBox = document.getElementById("messages")
+    const message = document.getElementById("message")
+    
+    const createMessage = (name, msg, host) => {    // function that creates a message 
+        let nameClass;
+        let crown;
+
+        if (host == true) { // label for the host of the event 
+            nameClass = "host-name";
+            crown = "👑 ";
+        } else {
+            nameClass = "";
+            crown = "";
+        }
+        const content = `
+        <div class="text">
+            <span>
+                <strong class="${nameClass}">${crown}${name}</strong>: ${msg}    
+            </span>
+            <span class="muted">
+                ${new Date().toLocaleString()}
+            </span>
+        </div>
+        `;
+        messagesBox.innerHTML += content;
+    };
+
+    socketio.on("message", (data) => {
+        createMessage(data.name, data.message, data.is_host)
+    })
+
+    const sendMessage = () => { // function that sends message to SocketIO server for it to be broadcast to the other attendees inside the chat room
+        if (message.value == "") return;
+        socketio.emit("message", {data: message.value})
+        message.value = "";
+    }; 
+
+    message.addEventListener("keydown", function(event) {   // function which enables you to send messages with the enter key
+        if (event.key === "Enter") {
+            event.preventDefault();
+            sendMessage()
+        }
+    })
+    socketio.on("room_expired", (data) => {     // when events expire, users are alerted and sent back to the home page
+        alert(data.message);
+        window.location.href = "/";
+    });
+
+    socketio.on("removed", (data) => {  // when a user is removed for being out of bounds, they are alerted and sent back to the home page
+        alert(data.message);
+        window.location.href = "/";
+    });
+
+    const roomLat= Number("{{ lat }}");
+    const roomLng = Number("{{ lng }}");
+    const roomRad = Number("{{ rad }}");
+    const initDistance = Number("{{ distance }}")   // the user's initial distance when their location was first accessed is stored
+
+    let warning = false;
+
+    navigator.geolocation.watchPosition(    // monitoring the user's position to make sure they stay in bounds of the event
+        (pos) => {
+            const userLat = pos.coords.latitude;
+            const userLng = pos.coords.longitude;
+            const userAcc = pos.coords.accuracy;
+
+            const distance = haversine(userLat, userLng, roomLat, roomLng); // calculating the user's distance from the event each time their location is monitored
+            const movementThreshold = Math.max(roomRad + 30, 100);  // threshold of movement that is allowed for the user
+
+
+            console.log(`Distance from room: ${distance}m`);
+
+            if (userAcc <= 150) {
+                if (distance > roomRad + 30 && !warning) {  // if a user travels more than 30m away from the area of the event, they are warned
+                    warning = true;
+                    alert("Warning: you are outside the bounds of the event and will be kicked if you do not move back inside!")
+                }
+
+                if (distance > roomRad + 70) {  // if a user travels more than 70m away from the area of the event, they are removed from the room
+                    alert("You are outside the bounds of the event and will be kicked.")
+                    socketio.emit("remove")
+                }
+            }
+
+            if (userAcc > 150) {
+                if (Math.abs(distance - initDistance) >= movementThreshold && !warning) {   // if the user's accuracy is poor, their initial distance value is compared to their current distance value. The difference in value determines if they have moved too far away or not
+                    warning = true;
+                    alert("Warning: you are outside the bounds of the event and will be kicked if you do not move back inside!")
+                }
+                if (Math.abs(distance - initDistance) > movementThreshold + 40) {
+                    alert("You are outside the bounds of the event and will be kicked.")
+                    socketio.emit("remove")
+                }
+            }
+        },
+        (err) => {
+            console.log("Location error");
+            alert("Location access is required.");
+        },
+        {
+            enableHighAccuracy:true,
+            maximumAge:0
+        }
+    );
+
+    function haversine(lat1, lng1, lat2, lng2) {    // function to compute the haversine formula for comparing distances
+        const R = 6371000;
+        const toRad = (value) => value * Math.PI / 180;
+
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) *
+            Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+    }
+
+    console.log(document.getElementById("chat-history"));
+    const el = document.getElementById("chat-history");
+    console.log(el.dataset.history);
+    const messages = JSON.parse(document.getElementById("chat-history").dataset.history);
+
+    messages.forEach(msg => {
+        createMessage(msg.name, msg.message, msg.is_host);  // displays the chat history
+    })
+    
+</script>
+
+{% endblock %}

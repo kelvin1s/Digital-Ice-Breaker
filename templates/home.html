@@ -1,0 +1,32 @@
+{% extends 'base.html' %}   <!--inherting code from base template so that we can override the block-->
+{% block content %}
+{% with messages = get_flashed_messages() %}  <!--storing flash messages temporarily in variable uses with block-->
+{% if messages %}
+{% for msg in messages %}
+    <div style="color: red;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %} 
+
+<form method="post" class="buttons">    <!--form for users to submit data. class is used to edit in css-->
+    <h1>Welcome to The Digital Ice Breaker</h1>
+    <h3>The Digital Ice Breaker is a social engagement platform designed to encourage strangers to connect with each other at your events!</h3>
+    <div>
+        <label>Name:</label>
+        <input type="text" placeholder="Enter a username!" name="name" value="{{name}}"/> <!--field to input name-->
+    </div>
+    <button type="submit" name="create" class="create-btn">Create your event space</button>  <!--button to create a new room-->
+    <div class="join">
+        <input type="text" placeholder="Room Code" name="code" value="{{code}}"/> <!--field to input room code, may not be needed-->
+        <button type="submit" name="join">Join a Room</button>  <!--button to join a room-->
+    </div>
+
+    {% if error %}
+    <ul>
+        <li style="color: red;">{{error}}</li>
+    </ul>
+    {% endif %}
+    
+</form>
+
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% block content %}
+{% with messages = get_flashed_messages() %}  
+{% if messages %}
+{% for msg in messages %}
+    <div style="color: red;">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<h1>Enter a username and allow location access to join the room!</h1>
+<div id="map" style="height:500px; width:100%"></div>
+<form id="join-room" method="post" class="buttons" onsubmit="return checkLocation()">
+    <label>Name:</label>
+    <input type="text" placeholder="Enter a username!" name="name" value="{{name or session.get('name', '')}}"/> <!--field to input name-->
+
+    {% if require_code %}
+        <p>Your location accuracy is poor. Please enter the room code:</p>  <!--field that appears if the user's location accuracy is poor and code is needed to validate them-->
+        <input type="text" name="verify_code" placeholder="Room code">
+    {% endif %}
+    
+    <button type="submit" name="create" class="create-btn">Submit</button>
+    <p id="accuracy-display"></p>
+
+    {% if distance is defined %}
+        <p id="distance-display">Distance from event: {{ distance|round(1) }}m</p>
+    {% endif %}
+        <!-- GPS location data-->
+    <input type="hidden" name="lat" id="lat" value="{{lat}}"> 
+    <input type="hidden" name="lng" id="lng" value="{{lng}}"> 
+    <input type="hidden" name="accuracy" id="accuracy" value="{{accuracy}}">
+
+    {% if error %}
+    <ul>
+        <li style="color: red;">{{error}}</li>
+    </ul>
+    {% endif %}
+</form>
+<script>
+    const requireCode = "{{ require_code|default(false) }}" === "True"; // variable used to for logic involving room code validation
+    let map = null;
+    let marker = null;
+    let circle = null;
+
+    const roomLat = Number("{{ roomLat }}")
+    const roomLng = Number("{{ roomLng }}")
+    const roomAcc = Number("{{ roomAcc }}")
+    const params = new URLSearchParams(window.location.search);
+    const demoAccuracy = params.get("demo_accuracy");
+
+
+    window.addEventListener("load", () => { // function for when the page loads which generates the map and obtains the user's location data
+        const lat = sessionStorage.getItem("lat");
+        const lng = sessionStorage.getItem("lng");
+        const acc = sessionStorage.getItem("acc");
+
+
+        console.log("User:", lat, lng, acc);
+        console.log("Room:", roomLat, roomLng, roomAcc);
+
+        if (!requireCode) {
+            getLocation();  // calling function to get obtain the user's location
+        }
+
+        initMap(lat || 50.72541056838557, lng || -1.8664151430130007, acc || 0);    // loads map using location data. On first launch of the page before location data has been processed, a blank map is displayed using placeholder coordinate values
+
+        if (lat && lng && acc) {
+            updateMap(lat, lng, acc);   // updates the map with the new markers and circles based on the new coordinates
+            return
+        }
+            
+    });
+
+        function getLocation() {    // initial function to request user's location
+            if(requireCode) {return}
+
+            console.log("Requesting Location");
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    console.log("Processing location");
+
+                    watchLocation(pos);
+                },
+                (err) => {
+                    console.log("Location error");
+                    alert("Location access is required.");
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function watchLocation(position) {  // user's location is continuously watched to calculate the values that best represent their location
+            if(requireCode) {
+                return;
+            }
+            console.log("Watching location");
+
+            let bestPosition = position;
+            let finished = false;
+
+            const watchID = navigator.geolocation.watchPosition(
+            (pos) => {
+                const acc = pos.coords.accuracy;
+                console.log("Accuracy:", acc);
+                
+                if (!bestPosition || acc < bestPosition.coords.accuracy) {
+                    bestPosition = pos; // storing the most accurate location data
+                }
+
+                if (acc <= 100 && !finished) {  // if location data comes back with an accuracy below or equal to 100, immediately stop watching the user's location and store that data
+                    finished = true;
+
+                    clearTimeout(timeoutID);
+                    navigator.geolocation.clearWatch(watchID);
+                    document.getElementById("lat").value = pos.coords.latitude;
+                    document.getElementById("lng").value = pos.coords.longitude;
+                    //document.getElementById("accuracy").value = pos.coords.accuracy;
+                    
+                    sessionStorage.setItem("lat", pos.coords.latitude);
+                    sessionStorage.setItem("lng", pos.coords.longitude);
+                    //sessionStorage.setItem("acc", pos.coords.accuracy);
+
+                    const acc = demoAccuracy ? Number(demoAccuracy) : pos.coords.accuracy;
+                    document.getElementById("accuracy").value = acc;
+                    sessionStorage.setItem("acc", acc);
+                    document.getElementById("accuracy-display").textContent =
+                    `Reported Accuracy: ${acc.toFixed(0)}m`;
+
+                    console.log(pos);
+                    console.log("Coordinates received");
+                
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    //const acc = pos.coords.accuracy;
+
+                    updateMap(lat, lng, acc);
+                    
+                }
+
+            },
+            (err) => {
+                console.log("Location error");
+                alert("Location access is required.");
+            },
+            {
+                enableHighAccuracy:true,
+                maximumAge:0
+            } 
+        );
+        const timeoutID = setTimeout(() => {    // if accuracy never goes below a certain value after 5 seconds, stop watching
+            if (finished) return;
+
+            navigator.geolocation.clearWatch(watchID);  
+            if(bestPosition) {
+                    document.getElementById("lat").value = bestPosition.coords.latitude;
+                    document.getElementById("lng").value = bestPosition.coords.longitude;
+                    //document.getElementById("accuracy").value = bestPosition.coords.accuracy;
+                    
+                    sessionStorage.setItem("lat", bestPosition.coords.latitude);
+                    sessionStorage.setItem("lng", bestPosition.coords.longitude);
+                    //sessionStorage.setItem("acc", bestPosition.coords.accuracy);
+
+                    const acc = demoAccuracy ? Number(demoAccuracy) : bestPosition.coords.accuracy;
+                    document.getElementById("accuracy").value = acc;
+                    sessionStorage.setItem("acc", acc);
+                    document.getElementById("accuracy-display").textContent =
+                    `Reported Accuracy: ${acc.toFixed(0)}m`;
+
+                    console.log(bestPosition);
+                    console.log("Coordinates received");
+                
+                    const lat = bestPosition.coords.latitude;
+                    const lng = bestPosition.coords.longitude;
+                    //const acc = bestPosition.coords.accuracy;
+
+                    updateMap(lat, lng, acc);
+            }
+            else {
+                    alert("Couldn't get location");
+            }
+        }, 5000);
+    }
+        function initMap(lat, lng, acc) {
+            if (!map) {
+                        map = L.map('map').setView([lat, lng], 13);
+
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        }).addTo(map);
+
+                    }
+        }    
+         
+        function updateMap(lat, lng, acc) {
+            if(!map) return;
+
+                map.setView([lat,lng], 13);
+                    
+                if (marker) {
+                    map.removeLayer(marker)
+                }
+
+                if (circle) {
+                    map.removeLayer(circle)
+                }
+
+                marker = L.marker([lat, lng])   // marker to show where the user is located
+                    .addTo(map)
+                    .bindPopup("You are here")
+                    .openPopup();
+                
+                    
+                circle = L.circle([roomLat, roomLng], {radius: roomAcc})    // circle based on the event's location and boundaries
+                    .addTo(map)
+                    .bindTooltip(`Circle = Event radius`, {
+                        permanent: true,
+                        direction: "right",
+                        offset: [0,100]
+                    });
+                        
+                let popup = L.popup();
+
+                setTimeout(() => {
+                    map.invalidateSize();
+                    setTimeout(() => {
+                        map.fitBounds(circle.getBounds());
+                    }, 50);
+                }, 100);
+
+                map.fitBounds(circle.getBounds());
+                }
+        function checkLocation() {
+            if(requireCode) {
+                return true;
+            }
+            const lat = document.getElementById("lat").value;   // function that checks to see if location has been accessed before being able to join any rooms
+            const lng = document.getElementById("lng").value;
+            const acc = document.getElementById("accuracy").value;
+
+            if (lat && lng && acc) {
+                return true;
+            }
+    
+        return false;
+    }    
+</script>
+{% endblock %}
