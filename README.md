@@ -1,7 +1,7 @@
 # The Digital Ice Breaker 
 
 ## Description
-The Digital Ice Breaker is a Python Flask web application designed as a social engagement tool to help strangers interact at social events via exclusive and temporary online chat rooms based on your physical location.
+The Digital Ice Breaker is a Python Flask web application designed as a social engagement tool to help strangers interact at social events via exclusive and temporary online chat rooms based on your physical location. I designed this proof-of-concept as a software solution to rapidly emerging social anxiety in correlation to the increasing dependence on developing technologies, as part of my final year project!
 
 ## Features
 - Host event-specific and time-sensitive chat rooms
