@@ -29,7 +29,7 @@ Copy the output of this script and replace the placeholder value in 'SECRET_KEY=
 ![Creating an event](screenshots/create-room.png)
 
 ## Adjusting event location
-![Adjust event location](screenshots/map-confirm)
+![Adjust event location](screenshots/map-confirm.png)
 
 ## Event chat room
 ![Event chat room](screenshots/chat-room.png)
