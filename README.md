@@ -21,3 +21,9 @@ Copy the output of this script and replace the placeholder value in 'SECRET_KEY=
 3. Create an ngrok account and download the .exe file
 4. Add the ngrok auth token via 'ngrok config add-authtoken *YOUR_TOKEN*' in the terminal
 5. Run the app with 'python main.py' in the terminal
+
+![Home page](screenshots/home-page.png)
+![Creating an event](screenshots/create-room.png)
+![Adjust event location](screenshots/map-confirm)
+![Event chat room](screenshots/chat-room.png)
+![Verifying attendee location](screenshots/location-verification.png)
